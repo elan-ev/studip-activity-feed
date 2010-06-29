@@ -1,0 +1,6 @@
+pluginname=ActivityFeed
+pluginclassname=ActivityFeed
+origin=virtUOS
+version=0.4
+studipMinVersion=1.11
+studipMaxVersion=1.11.9
