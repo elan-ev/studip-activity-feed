@@ -37,9 +37,9 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
         }
 
         if ($GLOBALS['perm']->have_perm('autor') && Navigation::hasItem('/browse/my_courses')) {
-            $navigation = new Navigation(_('Aktivitäten'));
+            $navigation = new Navigation(_('Neueste Aktivitäten'));
             $navigation->setURL(PluginEngine::getURL('activityfeed/activities'));
-            Navigation::addItem('/browse/my_courses/activities', $navigation);
+            Navigation::insertItem('/browse/my_courses/activities', $navigation, 'archive');
         }
     }
 
@@ -137,7 +137,7 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
         $enable = Request::int('enable');
         $perm->check('autor');
 
-        $GLOBALS['CURRENT_PAGE'] = _('Aktivitäten');
+        $GLOBALS['CURRENT_PAGE'] = _('Neueste Aktivitäten');
         $GLOBALS['_include_additional_header'] .=
             Assets::stylesheet($this->getPluginURL() . '/css/activities.css');
         Navigation::activateItem('/browse/my_courses/activities');
@@ -156,13 +156,13 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
         $template->days = $days;
         $template->category = $category;
         $template->categories = array(
-            'news'    => _('News'),
-            'votings' => _('Abstimmung'),
-            'surveys' => _('Umfrage'),
             'forum'   => _('Forum'),
             'files'   => _('Dateibereich'),
-            'info'    => _('Informationsseite'),
-            'wiki'    => _('Wiki')
+            'wiki'    => _('Wiki'),
+            'info'    => _('Information'),
+            'news'    => _('News'),
+            'votings' => _('Umfrage'),
+            'surveys' => _('Evaluation'),
         );
         $template->user = $user->id;
         $template->plugin = $this;
@@ -509,13 +509,13 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
         foreach ($result as $row) {
             $items[] = array(
                 'id' => $row['vote_id'],
-                'title' => 'Voting: ' . $row['title'],
+                'title' => 'Umfrage: ' . $row['title'],
                 'author' => $row['Vorname'] . ' ' . $row['Nachname'],
                 'author_id' => $row['author_id'],
                 'link' => URLHelper::getLink('seminar_main.php#openvote',
                     array('cid' => $row['range_id'], 'voteopenID' => $row['vote_id'])),
                 'updated' => max($row['startdate'], $row['chdate']),
-                'summary' => sprintf('%s %s hat in der Veranstaltung "%s" die Abstimmung "%s" gestartet.',
+                'summary' => sprintf('%s %s hat in der Veranstaltung "%s" die Umfrage "%s" gestartet.',
                     $row['Vorname'], $row['Nachname'], $row['Name'], $row['title']),
                 'content' => $row['question'],
                 'category' => 'votings'
@@ -534,13 +534,13 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
         foreach ($result as $row) {
             $items[] = array(
                 'id' => $row['vote_id'],
-                'title' => 'Voting: ' . $row['title'],
+                'title' => 'Umfrage: ' . $row['title'],
                 'author' => $row['Vorname'] . ' ' . $row['Nachname'],
                 'author_id' => $row['author_id'],
                 'link' => URLHelper::getLink('institut_main.php#openvote',
                     array('cid' => $row['range_id'], 'voteopenID' => $row['vote_id'])),
                 'updated' => max($row['startdate'], $row['chdate']),
-                'summary' => sprintf('%s %s hat in der Einrichtung "%s" die Abstimmung "%s" gestartet.',
+                'summary' => sprintf('%s %s hat in der Einrichtung "%s" die Umfrage "%s" gestartet.',
                     $row['Vorname'], $row['Nachname'], $row['Name'], $row['title']),
                 'content' => $row['question'],
                 'category' => 'votings'
@@ -562,13 +562,13 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
         foreach ($result as $row) {
             $items[] = array(
                 'id' => $row['eval_id'],
-                'title' => 'Umfrage: ' . $row['title'],
+                'title' => 'Evaluation: ' . $row['title'],
                 'author' => $row['Vorname'] . ' ' . $row['Nachname'],
                 'author_id' => $row['author_id'],
                 'link' => URLHelper::getLink('seminar_main.php#openvote',
                     array('cid' => $row['range_id'], 'voteopenID' => $row['eval_id'])),
                 'updated' => max($row['startdate'], $row['chdate']),
-                'summary' => sprintf('%s %s hat in der Veranstaltung "%s" die Umfrage "%s" gestartet.',
+                'summary' => sprintf('%s %s hat in der Veranstaltung "%s" die Evaluation "%s" gestartet.',
                     $row['Vorname'], $row['Nachname'], $row['Name'], $row['title']),
                 'content' => $row['text'],
                 'category' => 'surveys'
@@ -588,13 +588,13 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
         foreach ($result as $row) {
             $items[] = array(
                 'id' => $row['eval_id'],
-                'title' => 'Umfrage: ' . $row['title'],
+                'title' => 'Evaluation: ' . $row['title'],
                 'author' => $row['Vorname'] . ' ' . $row['Nachname'],
                 'author_id' => $row['author_id'],
                 'link' => URLHelper::getLink('institut_main.php#openvote',
                     array('cid' => $row['range_id'], 'voteopenID' => $row['eval_id'])),
                 'updated' => max($row['startdate'], $row['chdate']),
-                'summary' => sprintf('%s %s hat in der Einrichtung "%s" die Umfrage "%s" gestartet.',
+                'summary' => sprintf('%s %s hat in der Einrichtung "%s" die Evaluation "%s" gestartet.',
                     $row['Vorname'], $row['Nachname'], $row['Name'], $row['title']),
                 'content' => $row['text'],
                 'category' => 'surveys'

@@ -2,10 +2,10 @@
     <a href="<?= PluginEngine::getLink("activityfeed/atom/$user/$key", array('cid' => NULL)) ?>">
         <?= _('Feed abonnieren') ?>
     </a>
-    /
-    <a href="<?= PluginEngine::getLink('activityfeed/activities', array('enable' => 0)) ?>">
+    <br>
+    (<a href="<?= PluginEngine::getLink('activityfeed/activities', array('enable' => 0)) ?>">
         <?= _('ausschalten') ?>
-    </a>
+    </a>)
 <? else: ?>
     <a href="<?= PluginEngine::getLink('activityfeed/activities', array('enable' => 1)) ?>">
         <?= _('Feed einschalten') ?>

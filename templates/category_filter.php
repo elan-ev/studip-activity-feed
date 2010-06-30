@@ -1,7 +1,7 @@
 <form action="<?= PluginEngine::getLink('activityfeed/activities') ?>" method="post">
     <select name="category" onchange="this.form.submit();">
         <option value="">
-            <?= _('alle anzeigen') ?>
+            <?= _('alles anzeigen') ?>
         </option>
         <? foreach ($categories as $key => $name): ?>
             <option value="<?= $key ?>" <?= $key == $category ? 'selected' : '' ?>>
