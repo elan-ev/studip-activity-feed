@@ -58,5 +58,5 @@ $infobox_content = array(
     )
 );
 
-$infobox = array('picture' => 'online.jpg', 'content' => $infobox_content);
+$infobox = array('picture' => 'infoboxes/online.jpg', 'content' => $infobox_content);
 ?>

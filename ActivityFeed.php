@@ -65,9 +65,9 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
      */
     private function get_user_key($user_id)
     {
-        $user_config = new UserConfig();
+        $user_config = new UserConfig($user_id);
 
-        return $user_config->getValue($user_id, 'ACTIVITY_FEED_KEY');
+        return $user_config->getValue('ACTIVITY_FEED_KEY');
     }
 
     /**
@@ -75,7 +75,7 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
      */
     private function set_user_key($user_id)
     {
-        $user_config = new UserConfig();
+        $user_config = new UserConfig($user_id);
         $key = '';
 
         for ($i = 0; $i < 32; ++$i) {
@@ -83,7 +83,7 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
         }
 
         $key = sha1($key);
-        $user_config->setValue($key, $user_id, 'ACTIVITY_FEED_KEY');
+        $user_config->store('ACTIVITY_FEED_KEY', $key);
     }
 
     /**
@@ -91,9 +91,9 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
      */
     private function clear_user_key($user_id)
     {
-        $user_config = new UserConfig();
+        $user_config = new UserConfig($user_id);
 
-        $user_config->unsetValue($user_id, 'ACTIVITY_FEED_KEY');
+        $user_config->delete('ACTIVITY_FEED_KEY');
     }
 
     /**
@@ -186,7 +186,7 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
         $days = min($days, 28);
 
         if ($this->get_user_key($user_id) != $key) {
-            throw new Studip_AccessDeniedException('invalid access key');
+            throw new AccessDeniedException('invalid access key');
         }
 
         header('Content-Type: application/atom+xml');
