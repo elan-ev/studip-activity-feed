@@ -201,6 +201,12 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
         $template->items = $this->get_activities($user_id, $range, $days);
         $template->items = $this->filter_category($template->items, $category);
 
+        if (count($template->items)) {
+            $template->updated = $template->items[0]['updated'];
+        } else {
+            $template->updated = time();
+        }
+
         echo $this->filter_xml_string($template->render());
     }
 
