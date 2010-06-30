@@ -192,6 +192,10 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
         header('Content-Type: application/atom+xml');
         $template = $this->template_factory->open('atom');
 
+        $template->base_url = $GLOBALS['ABSOLUTE_URI_STUDIP'];
+        $template->author_name = $GLOBALS['UNI_NAME_CLEAN'];
+        $template->author_email = $GLOBALS['UNI_CONTACT'];
+
         if (isset($range)) {
             $template->title = $GLOBALS['SessSemName'][0];
         } else {

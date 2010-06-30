@@ -1,20 +1,20 @@
 <?= '<?xml version="1.0" encoding="UTF-8"?>' ?>
 
-<feed xmlns="http://www.w3.org/2005/Atom">
-    <id>urn:studip:<?= md5($GLOBALS['ABSOLUTE_URI_STUDIP']) ?></id>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:base="<?= htmlspecialchars($base_url) ?>">
+    <id>urn:studip:<?= md5(Request::url()) ?></id>
     <title>
         <?= htmlspecialchars(studip_utf8encode($title)) ?>
     </title>
     <subtitle><?= utf8_encode(_('Neueste Aktivitäten')) ?></subtitle>
-    <link href="<?= htmlspecialchars($GLOBALS['ABSOLUTE_URI_STUDIP']) ?>"/>
-    <link rel="self" type="application/atom+xml" href="<?= htmlspecialchars(Request::url()) ?>"/>
+    <link rel="alternate" href="<?= htmlspecialchars($base_url) ?>"/>
+    <link rel="self" href="<?= htmlspecialchars(Request::url()) ?>"/>
     <updated><?= date('c', $updated) ?></updated>
     <author>
         <name>
-            <?= htmlspecialchars(utf8_encode($GLOBALS['UNI_NAME_CLEAN'])) ?>
+            <?= htmlspecialchars(utf8_encode($author_name)) ?>
         </name>
         <email>
-            <?= htmlspecialchars($GLOBALS['UNI_CONTACT']) ?>
+            <?= htmlspecialchars($author_email) ?>
         </email>
     </author>
 
