@@ -36,7 +36,7 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
             $this->add_feed_indicator($GLOBALS['SessionSeminar']);
         }
 
-        if ($GLOBALS['perm']->have_perm('autor') && Navigation::hasItem('/browse/my_courses')) {
+        if (Navigation::hasItem('/browse/my_courses')) {
             $navigation = new Navigation(_('Neueste Aktivitäten'));
             $navigation->setURL(PluginEngine::getURL('activityfeed/activities'));
             Navigation::insertItem('/browse/my_courses/activities', $navigation, 'archive');

@@ -4,26 +4,30 @@
                                _('<b>Geben Sie daher diesen Link nicht an andere Personen weiter!</b>'))) ?>
 <? endif ?>
 
-<ul id="stream">
-    <? foreach ($items as $item): ?>
-        <li class="<?= $item['category'] ?><?= $item['author_id'] == $user ? ' self' : '' ?>">
-            <span class="author">
-                <?= Avatar::getAvatar($item['author_id'])->getImageTag(Avatar::MEDIUM) ?>
-            </span>
-            <div class="content">
-                <span class="date">
-                    <?= _('vor') ?> <?= $plugin->readableTime($item['updated']) ?>
+<? if (count($items)): ?>
+    <ul id="stream">
+        <? foreach ($items as $item): ?>
+            <li class="<?= $item['category'] ?><?= $item['author_id'] == $user ? ' self' : '' ?>">
+                <span class="author">
+                    <?= Avatar::getAvatar($item['author_id'])->getImageTag(Avatar::MEDIUM) ?>
                 </span>
-                <h2>
-                    <a href="<?= $item['link'] ?>"><?= htmlReady($item['title']) ?></a>
-                </h2>
-                <div class="summary">
-                    <?= htmlReady($item['summary']) ?>
+                <div class="content">
+                    <span class="date">
+                        <?= _('vor') ?> <?= $plugin->readableTime($item['updated']) ?>
+                    </span>
+                    <h2>
+                        <a href="<?= $item['link'] ?>"><?= htmlReady($item['title']) ?></a>
+                    </h2>
+                    <div class="summary">
+                        <?= htmlReady($item['summary']) ?>
+                    </div>
                 </div>
-            </div>
-        </li>
-    <? endforeach ?>
-</ul>
+            </li>
+        <? endforeach ?>
+    </ul>
+<? else: ?>
+    <?= MessageBox::info(_('Es gibt zur Zeit nichts Neues in Ihren Veranstaltungen oder Einrichtungen.')) ?>
+<? endif ?>
 
 <?
 $infobox_content = array(
@@ -49,14 +53,18 @@ $infobox_content = array(
             array(
                 'icon' => 'ausruf_small.gif',
                 'text' => sprintf(_('Auf dieser Seite können Sie die Aktivitäten in Ihren Veranstaltungen und Einrichtungen in den letzten %d Tagen verfolgen.'), $days)
-            ), array(
-                'icon' => 'ausruf_small.gif',
-                'text' => sprintf(_('Über die URL des Feeds sind Inhalte (wie Forenbeiträge oder Wikiseiten) aus Stud.IP auch ohne Anmeldung abrufbar.
-                                     <p><b>Geben Sie daher diesen Link nicht an andere Personen weiter!</b></p>'), $days)
             )
         )
     )
 );
+
+if ($key) {
+    $infobox_content[2]['eintrag'][] = array(
+        'icon' => 'ausruf_small.gif',
+        'text' => sprintf(_('Über die URL des Feeds sind Inhalte (wie Forenbeiträge oder Wikiseiten) aus Stud.IP auch ohne Anmeldung abrufbar.
+                             <p><b>Geben Sie daher diesen Link nicht an andere Personen weiter!</b></p>'), $days)
+    );
+}
 
 $infobox = array('picture' => 'infoboxes/online.jpg', 'content' => $infobox_content);
 ?>
