@@ -11,7 +11,7 @@
 
 require_once 'lib/forum.inc.php';
 
-class ActivityFeed extends StudipPlugin implements SystemPlugin
+class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugin, SystemPlugin
 {
     /**
      * plugin template factory
@@ -34,6 +34,7 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
             $this->add_feed_indicator();
         } else if (in_array($page, words('seminar_main.php institut_main.php'))) {
             $this->add_feed_indicator($GLOBALS['SessionSeminar']);
+            PageLayout::addStylesheet($this->getPluginURL() . '/css/activities.css');
         }
 
         if (Navigation::hasItem('/browse/my_courses')) {
@@ -160,7 +161,7 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
             'files'   => _('Dateibereich'),
             'wiki'    => _('Wiki'),
             'info'    => _('Information'),
-            'news'    => _('News'),
+            'news'    => _('Ankündigung'),
             'votings' => _('Umfrage'),
             'surveys' => _('Evaluation'),
         );
@@ -215,6 +216,129 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
     }
 
     /**
+     * Display the activity stream of this user.
+     */
+    public function getHomepageTemplate($user_id)
+    {
+        global $user;
+
+        $days = Request::int('days', 14);
+        $as_public = Request::int('as_public');
+        $my_profile = $user->id == $user_id;
+
+        $user_config = new UserConfig($user_id);
+
+        if ($my_profile) {
+            if ($as_public === 1) {
+                $user_config->store('ACTIVITY_STREAM_PUBLIC', 1);
+            } else if ($as_public === 0) {
+                $user_config->delete('ACTIVITY_STREAM_PUBLIC');
+            }
+        } else if (!$user_config->getValue('ACTIVITY_STREAM_PUBLIC')) {
+            return NULL;
+        }
+
+        PageLayout::addStylesheet($this->getPluginURL() . '/css/activities.css');
+
+        $template = $this->template_factory->open('user_activities');
+
+        $template->title = _('Neueste Aktivitäten');
+        $template->icon_url = 'icons/16/white/community.png';
+        $template->items = $this->get_activities($user_id, 'user', $days);
+        $template->items = array_slice($template->items, 0, 5);
+        $template->user = $user->id;
+        $template->plugin = $this;
+        $template->my_profile = $my_profile;
+        $template->public = $user_config->getValue('ACTIVITY_STREAM_PUBLIC');
+
+        if ($template->public) {
+            PageLayout::addHeadElement('link', array(
+                'rel' => 'alternate',
+                'type' => 'application/atom+xml',
+                'title' => 'ActivityFeed',
+                'href' => PluginEngine::getLink("activityfeed/atom_user/$user_id",
+                    array('about_data' => NULL, 'username' => NULL))
+            ));
+
+            if ($my_profile) {
+                $template->title .= ' ' . _('(öffentlich)');
+            }
+        }
+
+        return count($template->items) ? $template : NULL;
+    }
+
+    /**
+     * Display the atom activity stream of this user.
+     */
+    public function atom_user_action($user)
+    {
+        $user_id = preg_replace('/\W/', '', $user);
+        $days = Request::int('days', 14);
+        $category = Request::option('category');
+        $days = min($days, 28);
+
+        $user_config = new UserConfig($user_id);
+
+        if (!$user_config->getValue('ACTIVITY_STREAM_PUBLIC')) {
+            throw new AccessDeniedException('access denied');
+        }
+
+        header('Content-Type: application/atom+xml');
+        $template = $this->template_factory->open('atom_user');
+
+        $template->base_url = $GLOBALS['ABSOLUTE_URI_STUDIP'];
+        $template->author_name = $GLOBALS['UNI_NAME_CLEAN'];
+        $template->author_email = $GLOBALS['UNI_CONTACT'];
+        $template->title = get_fullname($user_id);
+        $template->items = $this->get_activities($user_id, 'user', $days);
+        $template->items = $this->filter_category($template->items, $category);
+
+        if (count($template->items)) {
+            $template->updated = $template->items[0]['updated'];
+        } else {
+            $template->updated = time();
+        }
+
+        echo $this->filter_xml_string($template->render());
+    }
+
+    /**
+     * Return a navigation object representing this plugin in the
+     * course overview table or return NULL if you want to display
+     * no icon for this plugin (or course).
+     */
+    function getIconNavigation($course_id, $last_visit)
+    {
+        return NULL;
+    }
+
+    /**
+     * Return a template (an instance of the Flexi_Template class)
+     * to be rendered on the course summary page. Return NULL to
+     * render nothing for this plugin.
+     */
+    function getInfoTemplate($course_id)
+    {
+        global $user;
+
+        $days = Request::int('days', 14);
+
+        $template = $this->template_factory->open('user_activities');
+
+        $template->title = _('Neueste Aktivitäten');
+        $template->icon_url = 'icons/16/white/community.png';
+        $template->admin_url = PluginEngine::getURL('activityfeed/activities');
+        $template->admin_title = _('Einstellungen');
+        $template->items = $this->get_activities($user->id, $course_id, $days);
+        $template->items = array_slice($template->items, 0, 5);
+        $template->user = $user->id;
+        $template->plugin = $this;
+
+        return count($template->items) ? $template : NULL;
+    }
+
+    /**
      * Get all activities for this user as an array.
      */
     private function get_activities($user_id, $range, $days)
@@ -224,7 +348,10 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
         $chdate = $now - 24 * 60 * 60 * $days;
         $items = array();
 
-        if (isset($range)) {
+        if ($range === 'user') {
+            $sem_filter = "seminar_user.user_id = '$user_id' AND auth_user_md5.user_id = '$user_id'";
+            $inst_filter = "user_inst.user_id = '$user_id' AND auth_user_md5.user_id = '$user_id'";
+        } else if (isset($range)) {
             $sem_filter = "seminar_user.user_id = '$user_id' AND Seminar_id = '$range'";
             $inst_filter = "user_inst.user_id = '$user_id' AND Institut_id = '$range'";
         } else {
@@ -234,6 +361,7 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
 
         $sem_fields = 'auth_user_md5.user_id AS author_id, auth_user_md5.Vorname, auth_user_md5.Nachname, seminare.Name';
         $inst_fields = 'auth_user_md5.user_id AS author_id, auth_user_md5.Vorname, auth_user_md5.Nachname, Institute.Name';
+        $user_fields = 'auth_user_md5.user_id AS author_id, auth_user_md5.Vorname, auth_user_md5.Nachname, auth_user_md5.username';
 
         // forum
 
@@ -453,6 +581,32 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
 
         // news
 
+        if ($range === 'user') {
+            $sql = "SELECT news.*, news_range.range_id, $user_fields
+                    FROM news
+                    JOIN news_range USING (news_id)
+                    JOIN auth_user_md5 USING (user_id)
+                    WHERE range_id = '$user_id' AND news.date BETWEEN $chdate AND $now";
+
+            $result = $db->query($sql);
+
+            foreach ($result as $row) {
+                $items[] = array(
+                    'id' => $row['news_id'],
+                    'title' => 'Ankündigung: ' . $row['topic'],
+                    'author' => $row['Vorname'] . ' ' . $row['Nachname'],
+                    'author_id' => $row['author_id'],
+                    'link' => URLHelper::getLink('about.php#anker',
+                        array('username' => $row['username'], 'nopen' => $row['news_id'])),
+                    'updated' => max($row['date'], $row['chdate']),
+                    'summary' => sprintf('%s %s hat die persönliche Ankündigung "%s" eingestellt.',
+                        $row['Vorname'], $row['Nachname'], $row['topic']),
+                    'content' => $row['body'],
+                    'category' => 'news'
+                );
+            }
+        }
+
         $sql = "SELECT news.*, news_range.range_id, $sem_fields
                 FROM news
                 JOIN news_range USING (news_id)
@@ -466,13 +620,13 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
         foreach ($result as $row) {
             $items[] = array(
                 'id' => $row['news_id'],
-                'title' => 'News: ' . $row['topic'],
+                'title' => 'Ankündigung: ' . $row['topic'],
                 'author' => $row['Vorname'] . ' ' . $row['Nachname'],
                 'author_id' => $row['author_id'],
                 'link' => URLHelper::getLink('seminar_main.php#anker',
                     array('cid' => $row['range_id'], 'nopen' => $row['news_id'])),
                 'updated' => max($row['date'], $row['chdate']),
-                'summary' => sprintf('%s %s hat in der Veranstaltung "%s" die News "%s" eingestellt.',
+                'summary' => sprintf('%s %s hat in der Veranstaltung "%s" die Ankündigung "%s" eingestellt.',
                     $row['Vorname'], $row['Nachname'], $row['Name'], $row['topic']),
                 'content' => $row['body'],
                 'category' => 'news'
@@ -492,13 +646,13 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
         foreach ($result as $row) {
             $items[] = array(
                 'id' => $row['news_id'],
-                'title' => 'News: ' . $row['topic'],
+                'title' => 'Ankündigung: ' . $row['topic'],
                 'author' => $row['Vorname'] . ' ' . $row['Nachname'],
                 'author_id' => $row['author_id'],
                 'link' => URLHelper::getLink('institut_main.php#anker',
                     array('cid' => $row['range_id'], 'nopen' => $row['news_id'])),
                 'updated' => max($row['date'], $row['chdate']),
-                'summary' => sprintf('%s %s hat in der Einrichtung "%s" die News "%s" eingestellt.',
+                'summary' => sprintf('%s %s hat in der Einrichtung "%s" die Ankündigung "%s" eingestellt.',
                     $row['Vorname'], $row['Nachname'], $row['Name'], $row['topic']),
                 'content' => $row['body'],
                 'category' => 'news'
@@ -506,6 +660,31 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
         }
 
         // votings
+
+        if ($range === 'user') {
+            $sql = "SELECT vote.*, $user_fields
+                    FROM vote
+                    JOIN auth_user_md5 ON (author_id = user_id)
+                    WHERE range_id = '$user_id' AND vote.startdate BETWEEN $chdate AND $now";
+
+            $result = $db->query($sql);
+
+            foreach ($result as $row) {
+                $items[] = array(
+                    'id' => $row['vote_id'],
+                    'title' => 'Umfrage: ' . $row['title'],
+                    'author' => $row['Vorname'] . ' ' . $row['Nachname'],
+                    'author_id' => $row['author_id'],
+                    'link' => URLHelper::getLink('about.php#openvote',
+                        array('username' => $row['username'], 'voteopenID' => $row['vote_id'])),
+                    'updated' => max($row['startdate'], $row['chdate']),
+                    'summary' => sprintf('%s %s hat die persönliche Umfrage "%s" gestartet.',
+                        $row['Vorname'], $row['Nachname'], $row['title']),
+                    'content' => $row['question'],
+                    'category' => 'votings'
+                );
+            }
+        }
 
         $sql = "SELECT vote.*, $sem_fields
                 FROM vote
@@ -558,6 +737,32 @@ class ActivityFeed extends StudipPlugin implements SystemPlugin
         }
 
         // surveys
+
+        if ($range === 'user') {
+            $sql = "SELECT eval.*, $user_fields
+                    FROM eval
+                    JOIN eval_range USING (eval_id)
+                    JOIN auth_user_md5 ON (author_id = user_id)
+                    WHERE range_id = '$user_id' AND eval.startdate BETWEEN $chdate AND $now";
+
+            $result = $db->query($sql);
+
+            foreach ($result as $row) {
+                $items[] = array(
+                    'id' => $row['eval_id'],
+                    'title' => 'Evaluation: ' . $row['title'],
+                    'author' => $row['Vorname'] . ' ' . $row['Nachname'],
+                    'author_id' => $row['author_id'],
+                    'link' => URLHelper::getLink('about.php#openvote',
+                        array('username' => $row['username'], 'voteopenID' => $row['eval_id'])),
+                    'updated' => max($row['startdate'], $row['chdate']),
+                    'summary' => sprintf('%s %s hat die persönliche Evaluation "%s" gestartet.',
+                        $row['Vorname'], $row['Nachname'], $row['title']),
+                    'content' => $row['text'],
+                    'category' => 'surveys'
+                );
+            }
+        }
 
         $sql = "SELECT eval.*, $sem_fields
                 FROM eval
