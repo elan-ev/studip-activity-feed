@@ -31,7 +31,7 @@
 
 <?
 $infobox_content = array(
-    /* array(
+    array(
         'kategorie' => _('Einstellungen:'),
         'eintrag'   => array(
             array(
@@ -39,7 +39,7 @@ $infobox_content = array(
                 'text' => $this->render_partial('feed_enable')
             )
         )
-    ), */ array(
+    ), array(
         'kategorie' => _('Anzeigefilter:'),
         'eintrag'   => array(
             array(
@@ -57,6 +57,10 @@ $infobox_content = array(
         )
     )
 );
+
+if (!$feed_enabled) {
+    unset($infobox_content[0]);
+}
 
 if ($key) {
     $infobox_content[2]['eintrag'][] = array(
