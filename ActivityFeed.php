@@ -68,7 +68,7 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
     {
         $user_config = new UserConfig($user_id);
 
-        return $user_config->getValue('ACTIVITY_FEED_KEY');
+        return NULL; // $user_config->getValue('ACTIVITY_FEED_KEY');
     }
 
     /**
@@ -181,12 +181,13 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
     public function atom_action($user, $key)
     {
         $user_id = preg_replace('/\W/', '', $user);
+        $user_key = $this->get_user_key($user_id);
         $range = Request::option('range');
         $days = Request::int('days', 14);
         $category = Request::option('category');
         $days = min($days, 28);
 
-        if ($this->get_user_key($user_id) != $key) {
+        if ($user_key === NULL || $user_key !== $key) {
             throw new AccessDeniedException('invalid access key');
         }
 
@@ -252,11 +253,12 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
         $template->public = $user_config->getValue('ACTIVITY_STREAM_PUBLIC');
 
         if ($template->public) {
+            $username = get_username($user_id);
             PageLayout::addHeadElement('link', array(
                 'rel' => 'alternate',
                 'type' => 'application/atom+xml',
                 'title' => 'ActivityFeed',
-                'href' => PluginEngine::getLink("activityfeed/atom_user/$user_id",
+                'href' => PluginEngine::getLink("activityfeed/atom_user/$username",
                     array('about_data' => NULL, 'username' => NULL))
             ));
 
@@ -273,14 +275,15 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
      */
     public function atom_user_action($user)
     {
-        $user_id = preg_replace('/\W/', '', $user);
+        $username = preg_replace('/[^\w@.-]/', '', $user);
+        $user_id = get_userid($username);
         $days = Request::int('days', 14);
         $category = Request::option('category');
         $days = min($days, 28);
 
         $user_config = new UserConfig($user_id);
 
-        if (!$user_config->getValue('ACTIVITY_STREAM_PUBLIC')) {
+        if (!$user_id || !$user_config->getValue('ACTIVITY_STREAM_PUBLIC')) {
             throw new AccessDeniedException('access denied');
         }
 
