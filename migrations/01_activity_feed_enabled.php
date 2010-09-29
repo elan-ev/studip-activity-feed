@@ -3,9 +3,18 @@ class ActivityFeedEnabled extends Migration
 {
     public function up()
     {
-        $config = Config::get();
+        $db = DBManager::get();
+        $time = time();
 
-        $config->create('ACTIVITY_FEED_ENABLED', array(
+        $stmt = $db->prepare("
+            INSERT INTO config
+                (config_id, field, value, is_default, type, section, mkdate, chdate, description)
+            VALUES
+                (MD5(:name), :name, :value, 1, :type, :section, $time, $time, :description)
+        ");
+
+        $stmt->execute(array(
+            'name' => 'ACTIVITY_FEED_ENABLED',
             'description' => 'Erlaubt Nutzern, die globale Aktivitätsübersicht als Feed zu exportieren.',
             'section'     => 'global',
             'type'        => 'boolean',
@@ -15,9 +24,9 @@ class ActivityFeedEnabled extends Migration
 
     public function down()
     {
-        $config = Config::get();
+        $db = DBManager::get();
 
-        $config->delete('ACTIVITY_FEED_ENABLED');
+        $db->exec("DELETE FROM config WHERE field = 'ACTIVITY_FEED_ENABLED'");
     }
 }
 ?>

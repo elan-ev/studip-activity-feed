@@ -43,7 +43,7 @@ $infobox_content = array(
         'kategorie' => _('Anzeigefilter:'),
         'eintrag'   => array(
             array(
-                'icon' => 'icons/16/black/search.png',
+                'icon' => $plugin->api_version === '2.0' ? 'icons/16/black/search.png' : 'suchen.gif',
                 'text' => $this->render_partial('category_filter')
             )
         )
@@ -51,7 +51,7 @@ $infobox_content = array(
         'kategorie' => _('Hinweise:'),
         'eintrag'   => array(
             array(
-                'icon' => 'icons/16/black/info.png',
+                'icon' => $plugin->api_version === '2.0' ? 'icons/16/black/info.png' : 'ausruf_small.gif',
                 'text' => sprintf(_('Auf dieser Seite können Sie die Aktivitäten in Ihren Veranstaltungen und Einrichtungen in den letzten %d Tagen verfolgen.'), $days)
             )
         )
@@ -64,11 +64,11 @@ if (!$feed_enabled) {
 
 if ($key) {
     $infobox_content[2]['eintrag'][] = array(
-        'icon' => 'icons/16/black/exclaim.png',
+        'icon' => $plugin->api_version === '2.0' ? 'icons/16/black/exclaim.png' : 'ausruf_small.gif',
         'text' => sprintf(_('Über die URL des Feeds sind Inhalte (wie Forenbeiträge oder Wikiseiten) aus Stud.IP auch ohne Anmeldung abrufbar.
                              <p><b>Geben Sie daher diesen Link nicht an andere Personen weiter!</b></p>'), $days)
     );
 }
 
-$infobox = array('picture' => 'infobox/online.jpg', 'content' => $infobox_content);
+$infobox = array('picture' => $plugin->api_version === '2.0' ? 'infobox/online.jpg' : 'online.jpg', 'content' => $infobox_content);
 ?>

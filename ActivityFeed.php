@@ -19,6 +19,11 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
     protected $template_factory;
 
     /**
+     * Stud.IP API version
+     */
+    public $api_version;
+
+    /**
      * Initialize a new instance of the plugin.
      */
     public function __construct()
@@ -27,6 +32,7 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
 
         $template_path = $this->getPluginPath() . '/templates';
         $this->template_factory = new Flexi_TemplateFactory($template_path);
+        $this->api_version = class_exists('PageLayout') ? '2.0' : '1.11';
 
         $page = basename($_SERVER['PHP_SELF']);
 
@@ -34,7 +40,8 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
             $this->add_feed_indicator();
         } else if (in_array($page, words('seminar_main.php institut_main.php'))) {
             $this->add_feed_indicator($_SESSION['SessionSeminar']);
-            PageLayout::addStylesheet($this->getPluginURL() . '/css/activities.css');
+            $GLOBALS['_include_additional_header'] .=
+                Assets::stylesheet($this->getPluginURL() . '/css/activities.css');
         }
 
         if (Navigation::hasItem('/browse/my_courses')) {
@@ -55,28 +62,66 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
         $key = $this->get_user_key($user_id);
 
         if ($key) {
-            PageLayout::addHeadElement('link', array(
-                'rel'   => 'alternate',
-                'type'  => 'application/atom+xml',
-                'title' => 'ActivityFeed',
-                'href'  => PluginEngine::getLink("activityfeed/atom/$user_id/$key",
-                    array('cid' => NULL, 'range' => $range))
-            ));
+            $link_template = $this->template_factory->open('atom_link');
+            $link_template->action = "activityfeed/atom/$user_id/$key";
+            $link_template->range = $range;
+
+            $GLOBALS['_include_additional_header'] .= $link_template->render();
         }
     }
+
+    /**
+     * Set a UserConfig value.
+     */
+     private function user_config_get($user_id, $key)
+     {
+        $user_config = new UserConfig($user_id);
+
+        if ($this->api_version === '2.0') {
+            return $user_config->getValue($key);
+        } else {
+            return $user_config->getValue(NULL, $key);
+        }
+     }
+
+    /**
+     * Get a UserConfig value.
+     */
+     private function user_config_set($user_id, $key, $value)
+     {
+        $user_config = new UserConfig($user_id);
+
+        if ($this->api_version === '2.0') {
+            $user_config->store($key, $value);
+        } else {
+            $user_config->setValue($value, NULL, $key);
+        }
+     }
+
+    /**
+     * Remove a UserConfig setting.
+     */
+     private function user_config_delete($user_id, $key)
+     {
+        $user_config = new UserConfig($user_id);
+
+        if ($this->api_version === '2.0') {
+            $user_config->delete($key);
+        } else {
+            $user_config->unsetValue(NULL, $key);
+        }
+     }
 
     /**
      * Return the user specific access key.
      */
     private function get_user_key($user_id)
     {
-        $user_config = new UserConfig($user_id);
-
         if (!get_config('ACTIVITY_FEED_ENABLED')) {
             return NULL;
         }
 
-        return $user_config->getValue('ACTIVITY_FEED_KEY');
+        return $this->user_config_get($user_id, 'ACTIVITY_FEED_KEY');
     }
 
     /**
@@ -84,7 +129,6 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
      */
     private function set_user_key($user_id)
     {
-        $user_config = new UserConfig($user_id);
         $key = '';
 
         for ($i = 0; $i < 32; ++$i) {
@@ -92,7 +136,7 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
         }
 
         $key = sha1($key);
-        $user_config->store('ACTIVITY_FEED_KEY', $key);
+        $this->user_config_set($user_id, 'ACTIVITY_FEED_KEY', $key);
     }
 
     /**
@@ -100,9 +144,7 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
      */
     private function clear_user_key($user_id)
     {
-        $user_config = new UserConfig($user_id);
-
-        $user_config->delete('ACTIVITY_FEED_KEY');
+        $this->user_config_delete($user_id, 'ACTIVITY_FEED_KEY');
     }
 
     /**
@@ -146,8 +188,9 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
         $enable = Request::int('enable');
         $perm->check('autor');
 
-        PageLayout::setTitle(_('Neueste Aktivitäten'));
-        PageLayout::addStylesheet($this->getPluginURL() . '/css/activities.css');
+        $GLOBALS['CURRENT_PAGE'] = _('Neueste Aktivitäten');
+        $GLOBALS['_include_additional_header'] .=
+            Assets::stylesheet($this->getPluginURL() . '/css/activities.css');
         Navigation::activateItem('/browse/my_courses/activities');
 
         if ($enable === 1) {
@@ -196,7 +239,11 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
         $days = min($days, 28);
 
         if ($user_key === NULL || $user_key !== $key) {
-            throw new AccessDeniedException('invalid access key');
+            if ($this->api_version === '2.0') {
+                throw new AccessDeniedException('invalid access key');
+            } else {
+                throw new Studip_AccessDeniedException('invalid access key');
+            }
         }
 
         header('Content-Type: application/atom+xml');
@@ -235,40 +282,36 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
         $as_public = Request::int('as_public');
         $my_profile = $user->id == $user_id;
 
-        $user_config = new UserConfig($user_id);
-
         if ($my_profile) {
             if ($as_public === 1) {
-                $user_config->store('ACTIVITY_STREAM_PUBLIC', 1);
+                $this->user_config_set($user_id, 'ACTIVITY_STREAM_PUBLIC', 1);
             } else if ($as_public === 0) {
-                $user_config->delete('ACTIVITY_STREAM_PUBLIC');
+                $this->user_config_delete($user_id, 'ACTIVITY_STREAM_PUBLIC');
             }
-        } else if (!$user_config->getValue('ACTIVITY_STREAM_PUBLIC')) {
+        } else if (!$this->user_config_get($user_id, 'ACTIVITY_STREAM_PUBLIC')) {
             return NULL;
         }
 
-        PageLayout::addStylesheet($this->getPluginURL() . '/css/activities.css');
+        $GLOBALS['_include_additional_header'] .=
+            Assets::stylesheet($this->getPluginURL() . '/css/activities.css');
 
         $template = $this->template_factory->open('user_activities');
 
         $template->title = _('Neueste Aktivitäten');
-        $template->icon_url = 'icons/16/white/community.png';
+        $template->icon_url = $this->api_version === '2.0' ? 'icons/16/white/community.png' : 'nutzer.gif';
         $template->items = $this->get_activities($user_id, 'user', $days);
         $template->items = array_slice($template->items, 0, 5);
         $template->user = $user->id;
         $template->plugin = $this;
         $template->my_profile = $my_profile;
-        $template->public = $user_config->getValue('ACTIVITY_STREAM_PUBLIC');
+        $template->public = $this->user_config_get($user_id, 'ACTIVITY_STREAM_PUBLIC');
 
         if ($template->public) {
             $username = get_username($user_id);
-            PageLayout::addHeadElement('link', array(
-                'rel'   => 'alternate',
-                'type'  => 'application/atom+xml',
-                'title' => 'ActivityFeed',
-                'href'  => PluginEngine::getLink("activityfeed/atom_user/$username",
-                    array('about_data' => NULL, 'username' => NULL))
-            ));
+            $link_template = $this->template_factory->open('atom_link');
+            $link_template->action = "activityfeed/atom_user/$username";
+
+            $GLOBALS['_include_additional_header'] .= $link_template->render();
 
             if ($my_profile) {
                 $template->title .= ' ' . _('(öffentlich)');
@@ -289,10 +332,12 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
         $category = Request::option('category');
         $days = min($days, 28);
 
-        $user_config = new UserConfig($user_id);
-
-        if (!$user_id || !$user_config->getValue('ACTIVITY_STREAM_PUBLIC')) {
-            throw new AccessDeniedException('access denied');
+        if (!$user_id || !$this->user_config_get($user_id, 'ACTIVITY_STREAM_PUBLIC')) {
+            if ($this->api_version === '2.0') {
+                throw new AccessDeniedException('access denied');
+            } else {
+                throw new Studip_AccessDeniedException('access denied');
+            }
         }
 
         header('Content-Type: application/atom+xml');
@@ -338,7 +383,7 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
         $template = $this->template_factory->open('user_activities');
 
         $template->title = _('Neueste Aktivitäten');
-        $template->icon_url = 'icons/16/white/community.png';
+        $template->icon_url = $this->api_version === '2.0' ? 'icons/16/white/community.png' : 'nutzer.gif';
         $template->admin_url = PluginEngine::getURL('activityfeed/activities');
         $template->admin_title = _('Einstellungen');
         $template->items = $this->get_activities($user->id, $course_id, $days);
