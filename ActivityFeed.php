@@ -872,6 +872,18 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
             );
         }
 
+
+        // activity providing plugins
+        if ($this->api_version === '2.0') {
+            $plugin_items = PluginEngine::sendMessage('ActivityProvider',
+                                                      'getActivities',
+                                                      $user_id, $range, $days);
+            foreach ($plugin_items as $array) {
+                $items = array_merge($items, $array);
+            }
+        }
+
+
         // sort everything
 
         usort($items, create_function('$a, $b', 'return $b["updated"] - $a["updated"];'));
