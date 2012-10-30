@@ -51,6 +51,16 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
         }
     }
 
+    function getTabNavigation($course_id)
+    {
+        return null;
+    }
+    
+    function getNotificationObjects($course_id, $since, $user_id)
+    {
+        return null;
+    }
+
     /**
      * Add feed indicator for HTML head element.
      */
@@ -364,7 +374,7 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
      * course overview table or return NULL if you want to display
      * no icon for this plugin (or course).
      */
-    function getIconNavigation($course_id, $last_visit)
+    function getIconNavigation($course_id, $last_visit, $user_id)
     {
         return NULL;
     }
@@ -468,170 +478,6 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                     $row['Vorname'], $row['Nachname'], $row['Name'], $row['name']),
                 'content' => forum_kill_edit($row['description']),
                 'category' => 'forum'
-            );
-        }
-
-        // files
-
-        $sql = "SELECT dokumente.*, $sem_fields
-                FROM dokumente
-                JOIN auth_user_md5 USING (user_id)
-                JOIN seminar_user USING (Seminar_id)
-                JOIN seminare USING (Seminar_id)
-                WHERE $sem_filter AND dokumente.chdate > $chdate";
-
-        $result = $db->query($sql);
-
-        foreach ($result as $row) {
-            $folder_tree = TreeAbstract::GetInstance('StudipDocumentTree', array('range_id' => $row['seminar_id']));
-
-            if ($folder_tree->isDownloadFolder($row['range_id'], $user_id)) {
-                $items[] = array(
-                    'id' => $row['dokument_id'],
-                    'title' => 'Datei: ' . $row['name'],
-                    'author' => $row['Vorname'] . ' ' . $row['Nachname'],
-                    'author_id' => $row['author_id'],
-                    'link' => URLHelper::getLink('folder.php#anker',
-                        array('cid' => $row['seminar_id'], 'cmd' => 'tree', 'open' => $row['dokument_id'])),
-                    'updated' => $row['chdate'],
-                    'summary' => sprintf('%s %s hat im Dateibereich der Veranstaltung "%s" die Datei "%s" hochgeladen.',
-                        $row['Vorname'], $row['Nachname'], $row['Name'], $row['name']),
-                    'content' => $row['description'],
-                    'category' => 'files'
-                );
-            }
-        }
-
-        $sql = "SELECT dokumente.*, $inst_fields
-                FROM dokumente
-                JOIN auth_user_md5 USING (user_id)
-                JOIN user_inst ON (seminar_id = Institut_id)
-                JOIN Institute USING (Institut_id)
-                WHERE $inst_filter AND dokumente.chdate > $chdate";
-
-        $result = $db->query($sql);
-
-        foreach ($result as $row) {
-            $folder_tree = TreeAbstract::GetInstance('StudipDocumentTree', array('range_id' => $row['seminar_id']));
-
-            if ($folder_tree->isDownloadFolder($row['range_id'], $user_id)) {
-                $items[] = array(
-                    'id' => $row['dokument_id'],
-                    'title' => 'Datei: ' . $row['name'],
-                    'author' => $row['Vorname'] . ' ' . $row['Nachname'],
-                    'author_id' => $row['author_id'],
-                    'link' => URLHelper::getLink('folder.php#anker',
-                        array('cid' => $row['seminar_id'], 'cmd' => 'tree', 'open' => $row['dokument_id'])),
-                    'updated' => $row['chdate'],
-                    'summary' => sprintf('%s %s hat im Dateibereich der Einrichtung "%s" die Datei "%s" hochgeladen.',
-                        $row['Vorname'], $row['Nachname'], $row['Name'], $row['name']),
-                    'content' => $row['description'],
-                    'category' => 'files'
-                );
-            }
-        }
-
-        // wiki
-
-        $sql = "SELECT wiki.*, $sem_fields
-                FROM wiki
-                JOIN auth_user_md5 USING (user_id)
-                JOIN seminar_user ON (range_id = Seminar_id)
-                JOIN seminare USING (Seminar_id)
-                WHERE $sem_filter AND wiki.chdate > $chdate";
-
-        $result = $db->query($sql);
-
-        foreach ($result as $row) {
-            $items[] = array(
-                'id' => md5($row['range_id'] . ':' . $row['keyword'] . ':' . $row['version']),
-                'title' => 'Wiki: ' . $row['keyword'],
-                'author' => $row['Vorname'] . ' ' . $row['Nachname'],
-                'author_id' => $row['author_id'],
-                'link' => URLHelper::getLink('wiki.php',
-                    array('cid' => $row['range_id'], 'keyword' => $row['keyword'])),
-                'updated' => $row['chdate'],
-                'summary' => sprintf('%s %s hat im Wiki der Veranstaltung "%s" die Seite "%s" geändert.',
-                    $row['Vorname'], $row['Nachname'], $row['Name'], $row['keyword']),
-                'content' => $row['body'],
-                'category' => 'wiki'
-            );
-        }
-
-        $sql = "SELECT wiki.*, $inst_fields
-                FROM wiki
-                JOIN auth_user_md5 USING (user_id)
-                JOIN user_inst ON (range_id = Institut_id)
-                JOIN Institute USING (Institut_id)
-                WHERE $inst_filter AND wiki.chdate > $chdate";
-
-        $result = $db->query($sql);
-
-        foreach ($result as $row) {
-            $items[] = array(
-                'id' => md5($row['range_id'] . ':' . $row['keyword'] . ':' . $row['version']),
-                'title' => 'Wiki: ' . $row['keyword'],
-                'author' => $row['Vorname'] . ' ' . $row['Nachname'],
-                'author_id' => $row['author_id'],
-                'link' => URLHelper::getLink('wiki.php',
-                    array('cid' => $row['range_id'], 'keyword' => $row['keyword'])),
-                'updated' => $row['chdate'],
-                'summary' => sprintf('%s %s hat im Wiki der Einrichtung "%s" die Seite "%s" geändert.',
-                    $row['Vorname'], $row['Nachname'], $row['Name'], $row['keyword']),
-                'content' => $row['body'],
-                'category' => 'wiki'
-            );
-        }
-
-        // info
-
-        $sql = "SELECT scm.*, $sem_fields
-                FROM scm
-                JOIN auth_user_md5 USING (user_id)
-                JOIN seminar_user ON (range_id = Seminar_id)
-                JOIN seminare USING (Seminar_id)
-                WHERE $sem_filter AND scm.chdate > $chdate";
-
-        $result = $db->query($sql);
-
-        foreach ($result as $row) {
-            $items[] = array(
-                'id' => $row['scm_id'],
-                'title' => 'Info: ' . $row['tab_name'],
-                'author' => $row['Vorname'] . ' ' . $row['Nachname'],
-                'author_id' => $row['author_id'],
-                'link' => URLHelper::getLink('scm.php',
-                    array('cid' => $row['range_id'], 'show_scm' => $row['scm_id'])),
-                'updated' => $row['chdate'],
-                'summary' => sprintf('%s %s hat in der Veranstaltung "%s" die Informationsseite "%s" geändert.',
-                    $row['Vorname'], $row['Nachname'], $row['Name'], $row['tab_name']),
-                'content' => $row['content'],
-                'category' => 'info'
-            );
-        }
-
-        $sql = "SELECT scm.*, $inst_fields
-                FROM scm
-                JOIN auth_user_md5 USING (user_id)
-                JOIN user_inst ON (range_id = Institut_id)
-                JOIN Institute USING (Institut_id)
-                WHERE $inst_filter AND scm.chdate > $chdate";
-
-        $result = $db->query($sql);
-
-        foreach ($result as $row) {
-            $items[] = array(
-                'id' => $row['scm_id'],
-                'title' => 'Info: ' . $row['tab_name'],
-                'author' => $row['Vorname'] . ' ' . $row['Nachname'],
-                'author_id' => $row['author_id'],
-                'link' => URLHelper::getLink('scm.php',
-                    array('cid' => $row['range_id'], 'show_scm' => $row['scm_id'])),
-                'updated' => $row['chdate'],
-                'summary' => sprintf('%s %s hat in der Einrichtung "%s" die Informationsseite "%s" geändert.',
-                    $row['Vorname'], $row['Nachname'], $row['Name'], $row['tab_name']),
-                'content' => $row['content'],
-                'category' => 'info'
             );
         }
 
@@ -883,6 +729,60 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
             }
         }
 
+        // get content-elements from all modules and plugins
+        $stmt = DBManager::get()->prepare("SELECT seminare.* FROM seminar_user
+            LEFT JOIN seminare USING (Seminar_id)
+            WHERE user_id = ? ");
+        $stmt->execute(array($user_id));
+
+        # 'forum participants documents news scm schedule wiki vote literature elearning_interface'
+        $module_slots = words('documents scm wiki participants');
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $seminar) {
+            $sem_class = $GLOBALS['SEM_CLASS'][$GLOBALS['SEM_TYPE'][$seminar['status']]["class"]];
+            foreach ($module_slots as $slot) {
+                $module = $sem_class->getModule($slot);
+                $notifications = $module->getNotificationObjects($seminar['Seminar_id'], $chdate, $user_id);
+                if ($notifications) foreach ($notifications as $ce) {
+                    $items[] = array(
+                        'title'     => $ce->getTitle(),
+                        'author'    => $ce->getCreator(),
+                        'author_id' => $ce->getCreatorId(),
+                        'link'      => $ce->getUrl(),
+                        'updated'   => $ce->getDate(),
+                        'summary'   => $ce->getSummary(),
+                        'content'   => $ce->getContent(),
+                        'category'  => $slot
+                    );
+                }
+            }
+        }
+
+        $stmt = DBManager::get()->prepare("SELECT Institute.*
+            FROM user_inst
+            LEFT JOIN Institute USING (Institut_id)
+            WHERE user_id = ?");
+        $stmt->execute(array($user_id));
+        
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $institute) {
+            foreach ($module_slots as $slot) {
+                $class = 'Core' . $slot;
+                $module = new $class;
+                $notifications = $module->getNotificationObjects($institute['Institut_id'], $chdate, $user_id);
+                if ($notifications) foreach ($notifications as $ce) {
+                    $items[] = array(
+                        'title'     => $ce->getTitle(),
+                        'author'    => $ce->getCreator(),
+                        'author_id' => $ce->getCreatorId(),
+                        'link'      => $ce->getUrl(),
+                        'updated'   => $ce->getDate(),
+                        'summary'   => $ce->getSummary(),
+                        'content'   => $ce->getContent(),
+                        'category'  => $slot
+                    );
+                }
+            }        
+        }
 
         // sort everything
 
