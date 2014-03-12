@@ -429,58 +429,6 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
         $inst_fields = 'auth_user_md5.user_id AS author_id, auth_user_md5.Vorname, auth_user_md5.Nachname, Institute.Name';
         $user_fields = 'auth_user_md5.user_id AS author_id, auth_user_md5.Vorname, auth_user_md5.Nachname, auth_user_md5.username';
 
-        // forum
-
-        $sql = "SELECT px_topics.*, $sem_fields
-                FROM px_topics
-                JOIN auth_user_md5 USING (user_id)
-                JOIN seminar_user USING (Seminar_id)
-                JOIN seminare USING (Seminar_id)
-                WHERE $sem_filter AND px_topics.chdate > $chdate";
-
-        $result = $db->query($sql);
-
-        foreach ($result as $row) {
-            $items[] = array(
-                'id' => $row['topic_id'],
-                'title' => 'Forum: ' . $row['name'],
-                'author' => $row['Vorname'] . ' ' . $row['Nachname'],
-                'author_id' => $row['author_id'],
-                'link' => URLHelper::getLink('forum.php#anker',
-                    array('cid' => $row['Seminar_id'], 'view' => 'tree', 'open' => $row['topic_id'])),
-                'updated' => $row['chdate'],
-                'summary' => sprintf('%s %s hat im Forum der Veranstaltung "%s" den Beitrag "%s" geschrieben.',
-                    $row['Vorname'], $row['Nachname'], $row['Name'], $row['name']),
-                'content' => forum_kill_edit($row['description']),
-                'category' => 'forum'
-            );
-        }
-
-        $sql = "SELECT px_topics.*, $inst_fields
-                FROM px_topics
-                JOIN auth_user_md5 USING (user_id)
-                JOIN user_inst ON (Seminar_id = Institut_id)
-                JOIN Institute USING (Institut_id)
-                WHERE $inst_filter AND px_topics.chdate > $chdate";
-
-        $result = $db->query($sql);
-
-        foreach ($result as $row) {
-            $items[] = array(
-                'id' => $row['topic_id'],
-                'title' => 'Forum: ' . $row['name'],
-                'author' => $row['Vorname'] . ' ' . $row['Nachname'],
-                'author_id' => $row['author_id'],
-                'link' => URLHelper::getLink('forum.php#anker',
-                    array('cid' => $row['Seminar_id'], 'view' => 'tree', 'open' => $row['topic_id'])),
-                'updated' => $row['chdate'],
-                'summary' => sprintf('%s %s hat im Forum der Einrichtung "%s" den Beitrag "%s" geschrieben.',
-                    $row['Vorname'], $row['Nachname'], $row['Name'], $row['name']),
-                'content' => forum_kill_edit($row['description']),
-                'category' => 'forum'
-            );
-        }
-
         // news
 
         if ($range === 'user') {
@@ -736,7 +684,7 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
         $stmt->execute(array($user_id));
 
         # 'forum participants documents news scm schedule wiki vote literature elearning_interface'
-        $module_slots = words('documents scm wiki participants');
+        $module_slots = words('forum documents scm wiki participants');
 
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $seminar) {
             $sem_class = $GLOBALS['SEM_CLASS'][$GLOBALS['SEM_TYPE'][$seminar['status']]["class"]];
@@ -764,6 +712,7 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
             WHERE user_id = ?");
         $stmt->execute(array($user_id));
         
+
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $institute) {
             foreach ($module_slots as $slot) {
                 $class = 'Core' . $slot;
