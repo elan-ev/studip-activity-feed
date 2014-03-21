@@ -9,9 +9,7 @@
  * the License, or (at your option) any later version.
  */
 
-require_once 'lib/forum.inc.php';
-
-class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugin, SystemPlugin
+class ActivityFeedBase extends StudipPlugin implements HomepagePlugin, StandardPlugin, SystemPlugin
 {
     /**
      * plugin template factory
@@ -51,14 +49,9 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
         }
     }
 
-    function getTabNavigation($course_id)
+    public function getTabNavigation($course_id)
     {
-        return null;
-    }
-    
-    function getNotificationObjects($course_id, $since, $user_id)
-    {
-        return null;
+        return array();
     }
 
     /**
@@ -379,6 +372,11 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
         return NULL;
     }
 
+    function getNotificationObjects($course_id, $since, $user_id)
+    {
+        return array();
+    }
+
     /**
      * Return a template (an instance of the Flexi_Template class)
      * to be rendered on the course summary page. Return NULL to
@@ -407,12 +405,13 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
     /**
      * Get all activities for this user as an array.
      */
-    private function get_activities($user_id, $range, $days)
+    public function get_activities($user_id, $range, $days)
     {
         $db = DBManager::get();
         $now = time();
         $chdate = $now - 24 * 60 * 60 * $days;
         $items = array();
+        $limit = " LIMIT 100";
 
         if ($range === 'user') {
             $sem_filter = "seminar_user.user_id = '$user_id' AND auth_user_md5.user_id = '$user_id'";
@@ -425,8 +424,8 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
             $inst_filter = "user_inst.user_id = '$user_id'";
         }
 
-        $sem_fields = 'auth_user_md5.user_id AS author_id, auth_user_md5.Vorname, auth_user_md5.Nachname, seminare.Name';
-        $inst_fields = 'auth_user_md5.user_id AS author_id, auth_user_md5.Vorname, auth_user_md5.Nachname, Institute.Name';
+        $sem_fields = 'auth_user_md5.user_id AS author_id, auth_user_md5.Vorname, auth_user_md5.Nachname, seminare.Name, auth_user_md5.username';
+        $inst_fields = 'auth_user_md5.user_id AS author_id, auth_user_md5.Vorname, auth_user_md5.Nachname, Institute.Name, auth_user_md5.username';
         $user_fields = 'auth_user_md5.user_id AS author_id, auth_user_md5.Vorname, auth_user_md5.Nachname, auth_user_md5.username';
 
         // news
@@ -436,7 +435,7 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                     FROM news
                     JOIN news_range USING (news_id)
                     JOIN auth_user_md5 USING (user_id)
-                    WHERE range_id = '$user_id' AND news.date BETWEEN $chdate AND $now";
+                    WHERE range_id = '$user_id' AND news.date BETWEEN $chdate AND $now $limit";
 
             $result = $db->query($sql);
 
@@ -452,6 +451,8 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                     'summary' => sprintf('%s %s hat die persönliche Ankündigung "%s" eingestellt.',
                         $row['Vorname'], $row['Nachname'], $row['topic']),
                     'content' => $row['body'],
+                    'username' => $row['username'],
+                    'item_name' => $row['topic'],
                     'category' => 'news'
                 );
             }
@@ -463,7 +464,7 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                 JOIN auth_user_md5 USING (user_id)
                 JOIN seminar_user ON (range_id = Seminar_id)
                 JOIN seminare USING (Seminar_id)
-                WHERE $sem_filter AND news.date BETWEEN $chdate AND $now";
+                WHERE $sem_filter AND news.date BETWEEN $chdate AND $now $limit";
 
         $result = $db->query($sql);
 
@@ -479,6 +480,9 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                 'summary' => sprintf('%s %s hat in der Veranstaltung "%s" die Ankündigung "%s" eingestellt.',
                     $row['Vorname'], $row['Nachname'], $row['Name'], $row['topic']),
                 'content' => $row['body'],
+                'username' => $row['username'],
+                'item_name' => $row['topic'],
+                'range_name' => $row['Name'],
                 'category' => 'news'
             );
         }
@@ -489,7 +493,7 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                 JOIN auth_user_md5 USING (user_id)
                 JOIN user_inst ON (range_id = Institut_id)
                 JOIN Institute USING (Institut_id)
-                WHERE $inst_filter AND news.date BETWEEN $chdate AND $now";
+                WHERE $inst_filter AND news.date BETWEEN $chdate AND $now $limit";
 
         $result = $db->query($sql);
 
@@ -505,6 +509,9 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                 'summary' => sprintf('%s %s hat in der Einrichtung "%s" die Ankündigung "%s" eingestellt.',
                     $row['Vorname'], $row['Nachname'], $row['Name'], $row['topic']),
                 'content' => $row['body'],
+                'username' => $row['username'],
+                'item_name' => $row['topic'],
+                'range_name' => $row['Name'],
                 'category' => 'news'
             );
         }
@@ -515,7 +522,7 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
             $sql = "SELECT vote.*, $user_fields
                     FROM vote
                     JOIN auth_user_md5 ON (author_id = user_id)
-                    WHERE range_id = '$user_id' AND vote.startdate BETWEEN $chdate AND $now";
+                    WHERE range_id = '$user_id' AND vote.startdate BETWEEN $chdate AND $now $limit";
 
             $result = $db->query($sql);
 
@@ -531,6 +538,8 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                     'summary' => sprintf('%s %s hat die persönliche Umfrage "%s" gestartet.',
                         $row['Vorname'], $row['Nachname'], $row['title']),
                     'content' => $row['question'],
+                    'username' => $row['username'],
+                    'item_name' => $row['title'],
                     'category' => 'votings'
                 );
             }
@@ -541,7 +550,7 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                 JOIN auth_user_md5 ON (author_id = user_id)
                 JOIN seminar_user ON (range_id = Seminar_id)
                 JOIN seminare USING (Seminar_id)
-                WHERE $sem_filter AND vote.startdate BETWEEN $chdate AND $now";
+                WHERE $sem_filter AND vote.startdate BETWEEN $chdate AND $now $limit";
 
         $result = $db->query($sql);
 
@@ -557,6 +566,9 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                 'summary' => sprintf('%s %s hat in der Veranstaltung "%s" die Umfrage "%s" gestartet.',
                     $row['Vorname'], $row['Nachname'], $row['Name'], $row['title']),
                 'content' => $row['question'],
+                'username' => $row['username'],
+                'item_name' => $row['title'],
+                'range_name' => $row['Name'],
                 'category' => 'votings'
             );
         }
@@ -566,7 +578,7 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                 JOIN auth_user_md5 ON (author_id = user_id)
                 JOIN user_inst ON (range_id = Institut_id)
                 JOIN Institute USING (Institut_id)
-                WHERE $inst_filter AND vote.startdate BETWEEN $chdate AND $now";
+                WHERE $inst_filter AND vote.startdate BETWEEN $chdate AND $now $limit";
 
         $result = $db->query($sql);
 
@@ -582,6 +594,9 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                 'summary' => sprintf('%s %s hat in der Einrichtung "%s" die Umfrage "%s" gestartet.',
                     $row['Vorname'], $row['Nachname'], $row['Name'], $row['title']),
                 'content' => $row['question'],
+                'username' => $row['username'],
+                'item_name' => $row['title'],
+                'range_name' => $row['Name'],
                 'category' => 'votings'
             );
         }
@@ -593,7 +608,7 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                     FROM eval
                     JOIN eval_range USING (eval_id)
                     JOIN auth_user_md5 ON (author_id = user_id)
-                    WHERE range_id = '$user_id' AND eval.startdate BETWEEN $chdate AND $now";
+                    WHERE range_id = '$user_id' AND eval.startdate BETWEEN $chdate AND $now $limit";
 
             $result = $db->query($sql);
 
@@ -609,6 +624,8 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                     'summary' => sprintf('%s %s hat die persönliche Evaluation "%s" gestartet.',
                         $row['Vorname'], $row['Nachname'], $row['title']),
                     'content' => $row['text'],
+                    'username' => $row['username'],
+                'item_name' => $row['title'],
                     'category' => 'surveys'
                 );
             }
@@ -620,7 +637,7 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                 JOIN auth_user_md5 ON (author_id = user_id)
                 JOIN seminar_user ON (range_id = Seminar_id)
                 JOIN seminare USING (Seminar_id)
-                WHERE $sem_filter AND eval.startdate BETWEEN $chdate AND $now";
+                WHERE $sem_filter AND eval.startdate BETWEEN $chdate AND $now $limit";
 
         $result = $db->query($sql);
 
@@ -636,6 +653,9 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                 'summary' => sprintf('%s %s hat in der Veranstaltung "%s" die Evaluation "%s" gestartet.',
                     $row['Vorname'], $row['Nachname'], $row['Name'], $row['title']),
                 'content' => $row['text'],
+                'username' => $row['username'],
+                'item_name' => $row['title'],
+                'range_name' => $row['Name'],
                 'category' => 'surveys'
             );
         }
@@ -646,7 +666,7 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                 JOIN auth_user_md5 ON (author_id = user_id)
                 JOIN user_inst ON (range_id = Institut_id)
                 JOIN Institute USING (Institut_id)
-                WHERE $inst_filter AND eval.startdate BETWEEN $chdate AND $now";
+                WHERE $inst_filter AND eval.startdate BETWEEN $chdate AND $now $limit";
 
         $result = $db->query($sql);
 
@@ -662,6 +682,9 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
                 'summary' => sprintf('%s %s hat in der Einrichtung "%s" die Evaluation "%s" gestartet.',
                     $row['Vorname'], $row['Nachname'], $row['Name'], $row['title']),
                 'content' => $row['text'],
+                'username' => $row['username'],
+                'item_name' => $row['title'],
+                'range_name' => $row['Name'],
                 'category' => 'surveys'
             );
         }
@@ -799,5 +822,68 @@ class ActivityFeed extends StudipPlugin implements HomepagePlugin, StandardPlugi
 
         return strtr($string, $parameters);
     }
+
+    public function describeRoutes()
+    {
+        return array(
+            '/activities(/:range_id)' => _('Aktivitäten'),
+        );
+    }
+
+    public function routes(&$router)
+    {
+        $router->get('/activities(/:range_id)', function ($range_id = '') use ($router) {
+            URLHelper::setBaseUrl($GLOBALS['ABSOLUTE_URI_STUDIP']);
+            $activities = ActivityFeed::get_activities($GLOBALS['user']->id, $range_id ?: null, 14);
+
+            foreach ($activities as &$item) {
+                if ($item['link'][0] === '/') {
+                    $item['link'] = str_replace($GLOBALS['CANONICAL_RELATIVE_PATH_STUDIP'], '', $item['link']);
+                    $item['link'] = URLHelper::getURL($item['link']);
+                }
+                if ($item['category'] === 'files') {
+                    $query = "SELECT seminar_id FROM dokumente WHERE dokument_id = ?";
+                    $statement = DBManager::get()->prepare($query);
+                    $statement->execute(array($item['id']));
+                    $seminar_id = $statement->fetchColumn();
+
+                    $item['action'] = sprintf('studip://course/%s/documents/%s', $seminar_id, $item['id']);
+                } else if ($item['category'] === 'forum') {
+                    $query = "SELECT seminar_id FROM forum_entries WHERE topic_id = ?";
+                    $statement = DBManager::get()->prepare($query);
+                    $statement->execute(array($item['id']));
+                    $seminar_id = $statement->fetchColumn();
+
+                    $item['action'] = sprintf('studip://course/%s/forum/%s', $seminar_id, $item['id']);
+                } else if ($item['category'] === 'news') {
+                    $parsed = parse_url($item['link']);
+                    parse_str($parsed['query'] ?: '', $parameters);
+                    if (strpos($parsed['path'], 'about.php') !== false) {
+                        $user = User::findByUsername($parameters['username']);
+                        $item['action'] = sprintf('studip://user/%s/news/%s', $user->user_id, $item['id']);
+                    } else if (strpos($parsed['path'], 'seminar_main.php') !== false) {
+                        $item['action'] = sprintf('studip://course/%s/news/%s', $parameters['cid'], $item['id']);
+                    } else if (strpos($parsed['path'], 'institut_main.php') !== false) {
+                        $item['action'] = sprintf('studip://institute/%s/news/%s', $parmeters['cid'], $item['id']);
+                    }
+                } else if ($item['category'] === 'wiki') {
+                    $parsed = parse_url($item['link']);
+                    parse_str($parsed['query'] ?: '', $parameters);
+                    $item['action'] = sprintf('studip://course/%s/wiki/%s', $parameters['cid'], $parameters['keyword']);
+                } else {
+                    $item['action'] = sprintf('studip://%s/%s', $item['category'], $item['id']);
+                }
+//                unset($item['author']);
+            }
+
+            $router->render(compact('activities'));
+        })->conditions(array('range_id' => '|[a-f0-9]{32}|user'));
+    }
 }
-?>
+
+if (interface_exists('APIPlugin')) {
+    class ActivityFeed extends ActivityFeedBase implements APIPlugin {}
+} else {
+    class ActivityFeed extends ActivityFeedBase {}
+}
+
