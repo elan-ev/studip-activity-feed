@@ -1,15 +1,12 @@
 #stream {
-    background: #e0e0e0;
     padding: 1em;
 }
 
-#stream li {
+#stream li.stream {
     background: white;
     list-style: none;
     margin: 0 0 1em 80px;
     min-height: 80px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
     -moz-border-radius: 10px;
     -webkit-border-radius: 10px;
 }
@@ -18,29 +15,36 @@
     margin: 0 80px 1em 0;
 }
 
-#stream li, #stream .author img {
+#stream li.stream {
+    background-color: #ECF3F7;
+}
+
+#stream li.stream, #stream .stream_author img {
+    /*
     box-shadow: 3px 3px 4px #999;
     -moz-box-shadow: 3px 3px 4px #999;
     -webkit-box-shadow: 3px 3px 4px #999;
+    */
 }
 
-#stream .author {
+#stream .stream_author {
     float: left;
-    margin-left: -80px;
+    margin-left: -85px;
 }
 
-#stream .self .author {
+#stream .self .stream_author {
     float: right;
-    margin-right: -80px;
+    margin-right: -85px;
 }
 
-#stream .author img {
+#stream .stream_author img {
     height: 80px;
-    width: 60px;
+    width: 80px;
 }
 
-#stream .content {
+#stream .stream_content {
     padding: 0.5em;
+    cursor: pointer;
 }
 
 #stream .date {
@@ -51,4 +55,13 @@
 #stream h2 {
     font-size: 1.2em;
     margin: 0 0 1em 0;
+}
+
+#stream .stream_details {
+    max-height: 100px;
+    overflow: hidden;
+}
+
+#stream .expand {
+    max-height: none ! important;
 }

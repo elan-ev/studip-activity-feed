@@ -7,11 +7,11 @@
 <? if (count($items)): ?>
     <ul id="stream">
         <? foreach ($items as $item): ?>
-            <li class="<?= $item['category'] ?><?= $item['author_id'] == $user ? ' self' : '' ?>">
-                <span class="author">
+            <li class="stream <?= $item['category'] ?><?= $item['author_id'] == $user ? ' self' : '' ?>">
+                <span class="stream_author">
                     <?= Avatar::getAvatar($item['author_id'])->getImageTag(Avatar::MEDIUM) ?>
                 </span>
-                <div class="content">
+                <div class="stream_content">
                     <span class="date">
                         <?= _('vor') ?> <?= $plugin->readableTime($item['updated']) ?>
                     </span>
@@ -19,7 +19,11 @@
                         <a href="<?= $item['link'] ?>"><?= htmlReady($item['title']) ?></a>
                     </h2>
                     <div class="summary">
-                        <?= htmlReady($item['summary']) ?>
+                        <b><?= htmlReady($item['summary']) ?></b>
+                        <br><br>
+                        <div class="stream_details" onClick="$(this).toggleClass('expand')">
+                            <?= $item['content'] ?: htmlReady($item['summary']) ?>
+                        </div>
                     </div>
                 </div>
             </li>
