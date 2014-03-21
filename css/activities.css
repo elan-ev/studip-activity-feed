@@ -44,6 +44,9 @@
 
 #stream .stream_content {
     padding: 0.5em;
+}
+
+#stream .stream_details {
     cursor: pointer;
 }
 
