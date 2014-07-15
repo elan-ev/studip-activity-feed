@@ -701,57 +701,68 @@ class ActivityFeedBase extends StudipPlugin implements HomepagePlugin, StandardP
         }
 
         // get content-elements from all modules and plugins
-        $stmt = DBManager::get()->prepare("SELECT seminare.* FROM seminar_user
+        $result = DBManager::get()->query("SELECT seminare.* FROM seminar_user
+            LEFT JOIN auth_user_md5 USING (user_id)
             LEFT JOIN seminare USING (Seminar_id)
-            WHERE user_id = ? ");
-        $stmt->execute(array($user_id));
+            WHERE " . $sem_filter);
 
         # 'forum participants documents news scm schedule wiki vote literature elearning_interface'
-        $module_slots = words('forum documents scm wiki participants');
+        $module_slots = words('forum documents scm wiki');
 
-        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $seminar) {
+        foreach ($result->fetchAll(PDO::FETCH_ASSOC) as $seminar) {
             $sem_class = $GLOBALS['SEM_CLASS'][$GLOBALS['SEM_TYPE'][$seminar['status']]["class"]];
             foreach ($module_slots as $slot) {
-                $module = $sem_class->getModule($slot);
-                $notifications = $module->getNotificationObjects($seminar['Seminar_id'], $chdate, $user_id);
-                if ($notifications) foreach ($notifications as $ce) {
-                    $items[] = array(
-                        'title'     => $ce->getTitle(),
-                        'author'    => $ce->getCreator(),
-                        'author_id' => $ce->getCreatorId(),
-                        'link'      => $ce->getUrl(),
-                        'updated'   => $ce->getDate(),
-                        'summary'   => $ce->getSummary(),
-                        'content'   => $ce->getContent(),
-                        'category'  => $slot
-                    );
+                if ($module = $sem_class->getModule($slot)) {
+                    $notifications = $module->getNotificationObjects($seminar['Seminar_id'], $chdate, $user_id);
+                    if ($notifications) foreach ($notifications as $ce) {
+                        // show only one users activites if activity stream on profile is used
+                        if ($range === 'user' && $ce->getCreatorId() != $user_id) {
+                            continue;
+                        }
+
+                        $items[] = array(
+                            'title'     => $ce->getTitle(),
+                            'author'    => $ce->getCreator(),
+                            'author_id' => $ce->getCreatorId(),
+                            'link'      => $ce->getUrl(),
+                            'updated'   => $ce->getDate(),
+                            'summary'   => $ce->getSummary(),
+                            'content'   => $ce->getContent(),
+                            'category'  => $slot
+                        );
+                    }
                 }
             }
         }
 
-        $stmt = DBManager::get()->prepare("SELECT Institute.*
+        $result = DBManager::get()->query("SELECT Institute.*
             FROM user_inst
+            LEFT JOIN auth_user_md5 USING (user_id)
             LEFT JOIN Institute USING (Institut_id)
-            WHERE user_id = ?");
-        $stmt->execute(array($user_id));
-        
+            WHERE " . $inst_filter);        
 
-        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $institute) {
+        foreach ($result->fetchAll(PDO::FETCH_ASSOC) as $institute) {
             foreach ($module_slots as $slot) {
                 $class = 'Core' . $slot;
-                $module = new $class;
-                $notifications = $module->getNotificationObjects($institute['Institut_id'], $chdate, $user_id);
-                if ($notifications) foreach ($notifications as $ce) {
-                    $items[] = array(
-                        'title'     => $ce->getTitle(),
-                        'author'    => $ce->getCreator(),
-                        'author_id' => $ce->getCreatorId(),
-                        'link'      => $ce->getUrl(),
-                        'updated'   => $ce->getDate(),
-                        'summary'   => $ce->getSummary(),
-                        'content'   => $ce->getContent(),
-                        'category'  => $slot
-                    );
+                if ($module = new $class) {
+                    $notifications = $module->getNotificationObjects($institute['Institut_id'], $chdate, $user_id);
+                    if ($notifications) foreach ($notifications as $ce) {
+                        // show only one users activites if activity stream on profile is used
+                        if ($range === 'user' && $ce->getCreatorId() != $user_id) {
+                            continue;
+                        }
+
+                        $items[] = array(
+                            'title'     => $ce->getTitle(),
+                            'author'    => $ce->getCreator(),
+                            'author_id' => $ce->getCreatorId(),
+                            'link'      => $ce->getUrl(),
+                            'updated'   => $ce->getDate(),
+                            'summary'   => $ce->getSummary(),
+                            'content'   => $ce->getContent(),
+                            'category'  => $slot
+                        );
+                    }
                 }
             }        
         }
