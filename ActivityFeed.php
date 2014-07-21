@@ -9,7 +9,7 @@
  * the License, or (at your option) any later version.
  */
 
-class ActivityFeedBase extends StudipPlugin implements HomepagePlugin, StandardPlugin, SystemPlugin
+class ActivityFeedBase extends StudipPlugin implements HomepagePlugin, StandardPlugin, SystemPlugin, PortalPlugin
 {
     /**
      * plugin template factory
@@ -34,7 +34,7 @@ class ActivityFeedBase extends StudipPlugin implements HomepagePlugin, StandardP
 
         $page = basename($_SERVER['PHP_SELF']);
 
-        if ($page === 'meine_seminare.php') {
+        if ($page === 'dispatch.php') {
             $this->add_feed_indicator();
         } else if (in_array($page, words('seminar_main.php institut_main.php'))) {
             $this->add_feed_indicator($_SESSION['SessionSeminar']);
@@ -274,6 +274,10 @@ class ActivityFeedBase extends StudipPlugin implements HomepagePlugin, StandardP
         echo $this->filter_xml_string($template->render());
     }
 
+    public function getPortalTemplate()
+    {
+        return $this->getHomepageTemplate($GLOBALS['user']->id);
+    }
     /**
      * Display the activity stream of this user.
      */
@@ -407,6 +411,7 @@ class ActivityFeedBase extends StudipPlugin implements HomepagePlugin, StandardP
      */
     public function get_activities($user_id, $range, $days)
     {
+        $days = 260;
         $db = DBManager::get();
         $now = time();
         $chdate = $now - 24 * 60 * 60 * $days;
