@@ -3,3 +3,4 @@ pluginclassname=ActivityFeed
 origin=elan-ev
 version=1.0
 studipMinVersion=3.0
+description=Mit diesem Widget haben Sie einen Überlick auf die systemweiten Aktivitäten.

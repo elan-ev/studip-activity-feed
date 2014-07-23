@@ -779,7 +779,12 @@ class ActivityFeedBase extends StudipPlugin implements HomepagePlugin, StandardP
 
         return $items;
     }
-
+    
+    public function getPluginName()
+    {
+        return _('Aktivitätenübersicht');
+    }
+    
     /**
      * Display a readable time format for past activities.
      */
