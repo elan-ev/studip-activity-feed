@@ -9,6 +9,9 @@
  * the License, or (at your option) any later version.
  */
 
+require_once "app/models/my_realm.php";
+require_once "models/ActivitiesModel.php";
+
 class ActivityFeedBase extends StudipPlugin implements HomepagePlugin, StandardPlugin, SystemPlugin, PortalPlugin
 {
     /**
@@ -434,93 +437,27 @@ class ActivityFeedBase extends StudipPlugin implements HomepagePlugin, StandardP
         $user_fields = 'auth_user_md5.user_id AS author_id, auth_user_md5.Vorname, auth_user_md5.Nachname, auth_user_md5.username';
 
         // news
+        
+        //3.1 stuff
+        
+        
+        //gather user_institutes and courses
+        # 1) use my_realm model
+        $semesters   = MyRealmModel::getSelectedSemesters('all');
+        $min_sem_key = min($semesters);
+        $max_sem_key = max($semesters);
+        $courses = MyRealmModel::getCourses($min_sem_key, $max_sem_key);
+        $courses = $courses->toArray('seminar_id');
+        
+        # 2) institutes
+        $institutes = MyRealmModel::getMyInstitutes();
 
-        if ($range === 'user') {
-            $sql = "SELECT news.*, news_range.range_id, $user_fields
-                    FROM news
-                    JOIN news_range USING (news_id)
-                    JOIN auth_user_md5 USING (user_id)
-                    WHERE range_id = '$user_id' AND news.date BETWEEN $chdate AND $now $limit";
-
-            $result = $db->query($sql);
-
-            foreach ($result as $row) {
-                $items[] = array(
-                    'id' => $row['news_id'],
-                    'title' => 'Ankündigung: ' . $row['topic'],
-                    'author' => $row['Vorname'] . ' ' . $row['Nachname'],
-                    'author_id' => $row['author_id'],
-                    'link' => URLHelper::getLink('about.php#anker',
-                        array('username' => $row['username'], 'nopen' => $row['news_id'])),
-                    'updated' => max($row['date'], $row['chdate']),
-                    'summary' => sprintf('%s %s hat die persönliche Ankündigung "%s" eingestellt.',
-                        $row['Vorname'], $row['Nachname'], $row['topic']),
-                    'content' => $row['body'],
-                    'username' => $row['username'],
-                    'item_name' => $row['topic'],
-                    'category' => 'news'
-                );
-            }
-        }
-
-        $sql = "SELECT news.*, news_range.range_id, $sem_fields
-                FROM news
-                JOIN news_range USING (news_id)
-                JOIN auth_user_md5 USING (user_id)
-                JOIN seminar_user ON (range_id = Seminar_id)
-                JOIN seminare USING (Seminar_id)
-                WHERE $sem_filter AND news.date BETWEEN $chdate AND $now $limit";
-
-        $result = $db->query($sql);
-
-        foreach ($result as $row) {
-            $items[] = array(
-                'id' => $row['news_id'],
-                'title' => 'Ankündigung: ' . $row['topic'],
-                'author' => $row['Vorname'] . ' ' . $row['Nachname'],
-                'author_id' => $row['author_id'],
-                'link' => URLHelper::getLink('seminar_main.php#anker',
-                    array('cid' => $row['range_id'], 'nopen' => $row['news_id'])),
-                'updated' => max($row['date'], $row['chdate']),
-                'summary' => sprintf('%s %s hat in der Veranstaltung "%s" die Ankündigung "%s" eingestellt.',
-                    $row['Vorname'], $row['Nachname'], $row['Name'], $row['topic']),
-                'content' => $row['body'],
-                'username' => $row['username'],
-                'item_name' => $row['topic'],
-                'range_name' => $row['Name'],
-                'category' => 'news'
-            );
-        }
-
-        $sql = "SELECT news.*, news_range.range_id, $inst_fields
-                FROM news
-                JOIN news_range USING (news_id)
-                JOIN auth_user_md5 USING (user_id)
-                JOIN user_inst ON (range_id = Institut_id)
-                JOIN Institute USING (Institut_id)
-                WHERE $inst_filter AND news.date BETWEEN $chdate AND $now $limit";
-
-        $result = $db->query($sql);
-
-        foreach ($result as $row) {
-            $items[] = array(
-                'id' => $row['news_id'],
-                'title' => 'Ankündigung: ' . $row['topic'],
-                'author' => $row['Vorname'] . ' ' . $row['Nachname'],
-                'author_id' => $row['author_id'],
-                'link' => URLHelper::getLink('institut_main.php#anker',
-                    array('cid' => $row['range_id'], 'nopen' => $row['news_id'])),
-                'updated' => max($row['date'], $row['chdate']),
-                'summary' => sprintf('%s %s hat in der Einrichtung "%s" die Ankündigung "%s" eingestellt.',
-                    $row['Vorname'], $row['Nachname'], $row['Name'], $row['topic']),
-                'content' => $row['body'],
-                'username' => $row['username'],
-                'item_name' => $row['topic'],
-                'range_name' => $row['Name'],
-                'category' => 'news'
-            );
-        }
-
+        # 3) Take care of news
+        $items = ActivitiesModel::getUserNews($user_id);
+        //$items[] = ActivitiesModel::getUserNewsForSystem($user_id);
+        $items[] = ActivitiesModel::getUserNewsForCourses($user_id, $courses);
+        $items[] = ActivitiesModel::getUserNewsForInstitutes($user_id, $institutes);
+ 
         // votings
 
         if ($range === 'user') {
@@ -694,9 +631,9 @@ class ActivityFeedBase extends StudipPlugin implements HomepagePlugin, StandardP
             );
         }
 
-
+        $api_version = class_exists('PageLayout') ? '2.0' : '1.11';
         // activity providing plugins
-        if ($this->api_version === '2.0') {
+        if ($api_version === '2.0') {
             $plugin_items = PluginEngine::sendMessage('ActivityProvider',
                                                       'getActivities',
                                                       $user_id, $range, $days);
